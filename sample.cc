@@ -650,7 +650,7 @@ mapper::HandleRead (Ptr<Socket> socket) // reads and maps and sends to client
         Ptr<Packet> newPacket = new Packet();
         MyHeader m;
         m.SetData(data);
-        packet->AddHeader (m);
+        newPacket->AddHeader (m);
 
         socketClient->Connect(Client);
         socketClient->Send(newPacket);
