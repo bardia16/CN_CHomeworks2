@@ -522,7 +522,7 @@ mapper::StartApplication (void)
     InetSocketAddress local = InetSocketAddress (ipMapper.GetAddress(map), port);
     socketMaster->Bind (local);
     socketMaster->Listen();
-    socketMaster->SetRecvCallback (MakeCallback (&mapper::HandleRead, this));
+    socketMaster->SetAcceptCallback (MakeCallback (&mapper::HandleRead, this));
 }
 
 void 
