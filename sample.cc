@@ -506,7 +506,7 @@ mapper::HandleRead (Ptr<Socket> socket)
 
         if(map == 0)//0-9
         {
-            switch (destinationHeader)//checking data of header?!
+            switch (destinationHeader.GetData())//checking data of header?!
             {
                 case 0:
                     data = 'a';
@@ -545,7 +545,7 @@ mapper::HandleRead (Ptr<Socket> socket)
         }
         else if(map == 1)//10-20
         {
-            switch (destinationHeader)
+            switch (destinationHeader.GetData())
             {
                 case 10:
                     data = 'k';
@@ -586,7 +586,7 @@ mapper::HandleRead (Ptr<Socket> socket)
         }   
         else//21-25
         {
-            switch (destinationHeader)
+            switch (destinationHeader.GetData())
             {
                 case 21:
                     data = 'v';
