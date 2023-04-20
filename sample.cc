@@ -444,13 +444,19 @@ master::HandleRead (Ptr<Socket> socket)
 
         MyHeader destinationHeader;
         packet->RemoveHeader (destinationHeader);
+
+        Ptr<Packet> newPacket = new Packet();
+        MyHeader m;
+        m.SetData(destinationHeader);
+        packet->AddHeader (m);
+
         socketMapper1->Connect(Mapper1);
         socketMapper2->Connect(Mapper2);
         socketMapper3->Connect(Mapper3);
 
-        socketMapper1->Send(destinationHeader);
-        socketMapper2->Send(destinationHeader);
-        socketMapper3->Send(destinationHeader);
+        socketMapper1->Send(newPacket);
+        socketMapper2->Send(newPacket);
+        socketMapper3->Send(newPacket);
     }
 }
 
@@ -484,9 +490,10 @@ void
 mapper::HandleRead (Ptr<Socket> socket)
 {
     Ptr<Packet> packet;
-    
+    char data;
     socketClient = Socket::CreateSocket (GetNode (), UdpSocketFactory::GetTypeId ());//sending to client
     InetSocketAddress Client = InetSocketAddress (ipClient.GetAddress(0), port);
+
     while ((packet = socket->Recv ()))
     {
         if (packet->GetSize () == 0)
@@ -496,19 +503,111 @@ mapper::HandleRead (Ptr<Socket> socket)
 
         MyHeader destinationHeader;
         packet->RemoveHeader (destinationHeader);
+
         if(map == 0)//0-9
         {
+            switch (destinationHeader)//checking data of header?!
+            {
+                case 0:
+                    data = 'a';
+                    break;
+                case 1:
+                    data = 'b';
+                    break;
+                case 2:
+                    data = 'c';
+                    break;
+                case 3:
+                    data = 'd';
+                    break;
+                case 4:
+                    data = 'e';
+                    break;
+                case 5:
+                    data = 'f';
+                    break;
+                case 6:
+                    data = 'g';
+                    break;
+                case 7:
+                    data = 'h';
+                    break;
+                case 8:
+                    data = 'i';
+                    break;
+                case 9:
+                    data = 'j';
+                    break;
+                default:
+                    return
+            }
 
         }
         else if(map == 1)//10-20
         {
-
-        }
+            switch (destinationHeader)
+            {
+                case 10:
+                    data = 'k';
+                    break;
+                case 11:
+                    data = 'l';
+                    break;
+                case 12:
+                    data = 'm';
+                    break;
+                case 13:
+                    data = 'n';
+                    break;
+                case 14:
+                    data = 'o';
+                    break;
+                case 15:
+                    data = 'p';
+                    break;
+                case 16:
+                    data = 'q';
+                    break;
+                case 17:
+                    data = 'r';
+                    break;
+                case 18:
+                    data = 's';
+                    break;
+                case 19:
+                    data = 't';
+                    break;
+                case 20:
+                    data = 'u';
+                    break;
+                default:
+                    return
+            }
+        }   
         else//21-25
         {
-
+            switch (destinationHeader)
+            {
+                case 21:
+                    data = 'v';
+                    break;
+                case 22:
+                    data = 'w';
+                    break;
+                case 23:
+                    data = 'x';
+                    break;
+                case 24:
+                    data = 'y';
+                    break;
+                case 25:
+                    data = 'z';
+                    break;
+                default:
+                    return
+            }
         }// data = one of a to z
-        
+
         Ptr<Packet> newPacket = new Packet();
         MyHeader m;
         m.SetData(data);
