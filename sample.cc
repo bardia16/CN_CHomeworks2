@@ -466,13 +466,15 @@ master::HandleRead (Ptr<Socket> socket) // reads and sends to mappers
     Ptr<Socket> socketMapper2 = Socket::CreateSocket (GetNode (), TcpSocketFactory::GetTypeId ());
     Ptr<Socket> socketMapper3 = Socket::CreateSocket (GetNode (), TcpSocketFactory::GetTypeId ());
 
-    socketMapper1->Connect(Mapper1);
-    socketMapper2->Connect(Mapper2);
-    socketMapper3->Connect(Mapper3);
+    
 
     InetSocketAddress Mapper1 = InetSocketAddress (ipMapper.GetAddress(0), port);
     InetSocketAddress Mapper2 = InetSocketAddress (ipMapper.GetAddress(1), port);
     InetSocketAddress Mapper3 = InetSocketAddress (ipMapper.GetAddress(2), port);
+
+    socketMapper1->Connect(Mapper1);
+    socketMapper2->Connect(Mapper2);
+    socketMapper3->Connect(Mapper3);
 
     while ((packet = socket->Recv ()))
     {
