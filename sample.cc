@@ -489,7 +489,7 @@ master::HandleRead (Ptr<Socket> socket) // reads and sends to mappers
         Ptr<Packet> newPacket = new Packet();
         MyHeader m;
         m.SetData(destinationHeader.GetData());
-        packet->AddHeader (m);
+        newPacket->AddHeader (m);
 
         
 
@@ -522,7 +522,7 @@ mapper::StartApplication (void)
     InetSocketAddress local = InetSocketAddress (ipMapper.GetAddress(map), port);
     socketMaster->Bind (local);
     socketMaster->Listen();
-    socketMaster->SetAcceptCallback (MakeCallback (&mapper::HandleRead, this));
+    socketMaster->SetRecvCallback (MakeCallback (&mapper::HandleRead, this));
 }
 
 void 
