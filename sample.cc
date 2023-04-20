@@ -344,17 +344,17 @@ main (int argc, char *argv[])
     /*mappers need client ip to send packet
       mappers need themselves ip to receive from master
     */
-    Ptr<master> mapperApp1 = CreateObject<mapper> (port, staNodeMapperInterface, staNodeClientInterface, 0);//port - mapper - client - map
+    Ptr<mapper> mapperApp1 = CreateObject<mapper> (port, staNodeMapperInterface, staNodeClientInterface, 0);//port - mapper - client - map
     wifiStaNodeMapper.Get (0)->AddApplication (mapperApp1);
     masterApp->SetStartTime (Seconds (0.0));
     masterApp->SetStopTime (Seconds (duration));  
 
-    Ptr<master> mapperApp2 = CreateObject<mapper> (port, staNodeMapperInterface, staNodeClientInterface, 1);//port - mapper - client - map
+    Ptr<mapper> mapperApp2 = CreateObject<mapper> (port, staNodeMapperInterface, staNodeClientInterface, 1);//port - mapper - client - map
     wifiStaNodeMapper.Get (1)->AddApplication (mapperApp2);
     masterApp->SetStartTime (Seconds (0.0));
     masterApp->SetStopTime (Seconds (duration));  
 
-    Ptr<master> mapperApp3 = CreateObject<mapper> (port, staNodeMapperInterface, staNodeClientInterface, 2);//port - mapper - client - map
+    Ptr<mapper> mapperApp3 = CreateObject<mapper> (port, staNodeMapperInterface, staNodeClientInterface, 2);//port - mapper - client - map
     wifiStaNodeMapper.Get (2)->AddApplication (mapperApp3);
     masterApp->SetStartTime (Seconds (0.0));
     masterApp->SetStopTime (Seconds (duration));  
@@ -462,9 +462,9 @@ master::HandleRead (Ptr<Socket> socket) // reads and sends to mappers
 {
     Ptr<Packet> packet;
 
-    socketMapper1 = Socket::CreateSocket (GetNode (), TcpSocketFactory::GetTypeId ());
-    socketMapper2 = Socket::CreateSocket (GetNode (), TcpSocketFactory::GetTypeId ());
-    socketMapper3 = Socket::CreateSocket (GetNode (), TcpSocketFactory::GetTypeId ());
+    Ptr<Socket> socketMapper1 = Socket::CreateSocket (GetNode (), TcpSocketFactory::GetTypeId ());
+    Ptr<Socket> socketMapper2 = Socket::CreateSocket (GetNode (), TcpSocketFactory::GetTypeId ());
+    Ptr<Socket> socketMapper3 = Socket::CreateSocket (GetNode (), TcpSocketFactory::GetTypeId ());
 
     InetSocketAddress Mapper1 = InetSocketAddress (ipMapper.GetAddress(0), port);
     InetSocketAddress Mapper2 = InetSocketAddress (ipMapper.GetAddress(1), port);
@@ -513,11 +513,11 @@ mapper::~mapper ()
 void
 mapper::StartApplication (void)
 {
-    socketMaster = Socket::CreateSocket (GetNode (), TcpSocketFactory::GetTypeId ());//receiving from master
+    Ptr<Socket> socketMaster = Socket::CreateSocket (GetNode (), TcpSocketFactory::GetTypeId ());//receiving from master
     
     InetSocketAddress local = InetSocketAddress (ipMapper.GetAddress(map), port);
     socketMaster->Bind (local);
-    socksocketMasteret->listen(1);
+    socketMaster->listen(1);
     socketMaster->SetRecvCallback (MakeCallback (&mapper::HandleRead, this));
 }
 
@@ -526,7 +526,7 @@ mapper::HandleRead (Ptr<Socket> socket) // reads and maps and sends to client
 {
     Ptr<Packet> packet;
     char data;
-    socketClient = Socket::CreateSocket (GetNode (), UdpSocketFactory::GetTypeId ());//sending to client
+    Ptr<Socket> socketClient = Socket::CreateSocket (GetNode (), UdpSocketFactory::GetTypeId ());//sending to client
     InetSocketAddress Client = InetSocketAddress (ipClient.GetAddress(0), port);
 
     while ((packet = socket->Recv ()))
