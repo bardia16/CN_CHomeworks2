@@ -466,6 +466,10 @@ master::HandleRead (Ptr<Socket> socket) // reads and sends to mappers
     Ptr<Socket> socketMapper2 = Socket::CreateSocket (GetNode (), TcpSocketFactory::GetTypeId ());
     Ptr<Socket> socketMapper3 = Socket::CreateSocket (GetNode (), TcpSocketFactory::GetTypeId ());
 
+    socketMapper1->Connect(Mapper1);
+    socketMapper2->Connect(Mapper2);
+    socketMapper3->Connect(Mapper3);
+
     InetSocketAddress Mapper1 = InetSocketAddress (ipMapper.GetAddress(0), port);
     InetSocketAddress Mapper2 = InetSocketAddress (ipMapper.GetAddress(1), port);
     InetSocketAddress Mapper3 = InetSocketAddress (ipMapper.GetAddress(2), port);
@@ -485,9 +489,7 @@ master::HandleRead (Ptr<Socket> socket) // reads and sends to mappers
         m.SetData(destinationHeader.GetData());
         packet->AddHeader (m);
 
-        socketMapper1->Connect(Mapper1);
-        socketMapper2->Connect(Mapper2);
-        socketMapper3->Connect(Mapper3);
+        
 
         socketMapper1->Send(newPacket);
         socketMapper2->Send(newPacket);
@@ -538,7 +540,7 @@ mapper::HandleRead (Ptr<Socket> socket) // reads and maps and sends to client
 
         MyHeader destinationHeader;
         packet->RemoveHeader (destinationHeader);
-
+        
         if(map == 0)//0-9
         {
             switch (destinationHeader.GetData())//checking data of header
