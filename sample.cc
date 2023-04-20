@@ -169,8 +169,8 @@ public:
     master (uint16_t port, Ipv4InterfaceContainer& ipMaster, Ipv4InterfaceContainer& ipMapper);
     virtual ~master ();
 private:
-    virtual void StartApplication (void);
-    void HandleRead (Ptr<Socket> socket);
+    virtual void StartApplication (void); //bind and waiting to recieve from client (UDP)
+    void HandleRead (Ptr<Socket> socket); // read and send the header to all mappers (TCP)
 
     uint16_t port;
     Ipv4InterfaceContainer& ipMaster;
@@ -184,8 +184,8 @@ public:
     mapper (uint16_t port, Ipv4InterfaceContainer& ipMapper, Ipv4InterfaceContainer& ipClient, int map);
     virtual ~mapper ();
 private:
-    virtual void StartApplication (void);
-    void HandleRead (Ptr<Socket> socket);
+    virtual void StartApplication (void); // bind and listening for master to send packet (TCP)
+    void HandleRead (Ptr<Socket> socket); // read and match the data to a character and send it to client (UDP)
 
     uint16_t port;
     Ipv4InterfaceContainer& ipMapper;
@@ -201,8 +201,8 @@ public:
     virtual ~client ();
 
 private:
-    virtual void StartApplication (void);
-    void HandleRead (Ptr<Socket> socket)
+    virtual void StartApplication (void); // generate and send the packet to master (UDP)
+    void HandleRead (Ptr<Socket> socket); // reads and prints the recieved data from mapper (UDP)
 
     uint16_t port;
     Ptr<Socket> socket;
@@ -233,7 +233,7 @@ main (int argc, char *argv[])
         LogComponentEnable ("UdpEchoClientApplication", LOG_LEVEL_INFO);
         LogComponentEnable ("UdpEchoServerApplication", LOG_LEVEL_INFO);
     }
-
+    // creating nodes
     NodeContainer wifiStaNodeClient;
     wifiStaNodeClient.Create (1);
 
@@ -243,6 +243,7 @@ main (int argc, char *argv[])
     NodeContainer wifiStaNodeMaster;
     wifiStaNodeMaster.Create (1);
 
+    // using yans 
     YansWifiChannelHelper channel = YansWifiChannelHelper::Default ();
 
     YansWifiPhyHelper phy;
@@ -257,10 +258,10 @@ main (int argc, char *argv[])
                  "Ssid", SsidValue (ssid),
                  "ActiveProbing", BooleanValue (false));
 
+    // creating devices for nodes to install wifi
     NetDeviceContainer staDeviceClient;
     staDeviceClient = wifi.Install (phy, mac, wifiStaNodeClient);
 
-    //mapper ips
     NetDeviceContainer staDeviceMapper;
     staDeviceMapper = wifi.Install (phy, mac, wifiStaNodeMapper);
 
@@ -275,6 +276,7 @@ main (int argc, char *argv[])
     em->SetAttribute ("ErrorRate", DoubleValue (error));
     phy.SetErrorRateModel("ns3::YansErrorRateModel");
 
+    // placing nodes in 2d space
     MobilityHelper mobility;
 
     mobility.SetPositionAllocator ("ns3::GridPositionAllocator",
@@ -300,6 +302,8 @@ main (int argc, char *argv[])
     stack.Install (wifiStaNodeMaster);
     stack.Install (wifiStaNodeMapper);
 
+
+    // creating ipv4 for nodes
     Ipv4AddressHelper address;
 
     Ipv4InterfaceContainer staNodeClientInterface;
@@ -318,16 +322,28 @@ main (int argc, char *argv[])
 
     uint16_t port = 1102;
 
+
+    // creating objects from node classes 
+
+    /*client needs master ip to send packet
+      client needs itself ip to receive from mappers
+    */ 
     Ptr<client> clientApp = CreateObject<client> (port, staNodeClientInterface, staNodesMasterInterface);// port - client - master
     wifiStaNodeClient.Get (0)->AddApplication (clientApp);
     clientApp->SetStartTime (Seconds (0.0));
     clientApp->SetStopTime (Seconds (duration));  
 
+    /*master needs mapper ip to send packet
+      master needs itself ip to receive from client
+    */  
     Ptr<master> masterApp = CreateObject<master> (port, staNodesMasterInterface, staNodeMapperInterface);//port - master - mapper
     wifiStaNodeMaster.Get (0)->AddApplication (masterApp);
     masterApp->SetStartTime (Seconds (0.0));
     masterApp->SetStopTime (Seconds (duration));
 
+    /*mappers need client ip to send packet
+      mappers need themselves ip to receive from master
+    */
     Ptr<master> mapperApp1 = CreateObject<mapper> (port, staNodeMapperInterface, staNodeClientInterface, 0);//port - mapper - client - map
     wifiStaNodeMapper.Get (0)->AddApplication (mapperApp1);
     masterApp->SetStartTime (Seconds (0.0));
@@ -380,7 +396,7 @@ static void GenerateTraffic (Ptr<Socket> socket, uint16_t data)
     packet->Print (std::cout);
     socket->Send(packet);
 
-    Simulator::Schedule (Seconds (0.1), &GenerateTraffic, socket, rand() % 26);
+    Simulator::Schedule (Seconds (0.1), &GenerateTraffic, socket, rand() % 26); // creating random packet from 0 to 25
 }
 
 void
@@ -397,7 +413,7 @@ client::StartApplication (void)
     sockMapper->SetRecvCallback (MakeCallback (&client::HandleRead, this));
 }
 void
-client::HandleRead (Ptr<Socket> socket)
+client::HandleRead (Ptr<Socket> socket) // reads and prints
 {
     Ptr<Packet> packet;
 
@@ -431,7 +447,7 @@ master::~master ()
 void
 master::StartApplication (void)
 {
-    socketMaster = Socket::CreateSocket (GetNode (), UdpSocketFactory::GetTypeId ());
+    Ptr<Socket> socketMaster = Socket::CreateSocket (GetNode (), UdpSocketFactory::GetTypeId ());
     
 
     InetSocketAddress local = InetSocketAddress (ipMaster.GetAddress(0), port);
@@ -442,7 +458,7 @@ master::StartApplication (void)
 }
 
 void 
-master::HandleRead (Ptr<Socket> socket)
+master::HandleRead (Ptr<Socket> socket) // reads and sends to mappers
 {
     Ptr<Packet> packet;
 
@@ -466,7 +482,7 @@ master::HandleRead (Ptr<Socket> socket)
 
         Ptr<Packet> newPacket = new Packet();
         MyHeader m;
-        m.SetData(destinationHeader);
+        m.SetData(destinationHeader.GetData());
         packet->AddHeader (m);
 
         socketMapper1->Connect(Mapper1);
@@ -506,7 +522,7 @@ mapper::StartApplication (void)
 }
 
 void 
-mapper::HandleRead (Ptr<Socket> socket)
+mapper::HandleRead (Ptr<Socket> socket) // reads and maps and sends to client
 {
     Ptr<Packet> packet;
     char data;
@@ -525,7 +541,7 @@ mapper::HandleRead (Ptr<Socket> socket)
 
         if(map == 0)//0-9
         {
-            switch (destinationHeader.GetData())//checking data of header?!
+            switch (destinationHeader.GetData())//checking data of header
             {
                 case 0:
                     data = 'a';
