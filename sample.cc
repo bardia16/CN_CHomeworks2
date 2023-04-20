@@ -250,7 +250,7 @@ main (int argc, char *argv[])
     phy.SetChannel (channel.Create ());
 
     WifiHelper wifi;
-    wifi.SetRemoteStationManager ("ns3::AarfWifiManager");
+    //wifi.SetRemoteStationManager ("ns3::AarfWifiManager");
 
     WifiMacHelper mac;
     Ssid ssid = Ssid ("ns-3-ssid");
@@ -517,7 +517,7 @@ mapper::StartApplication (void)
     
     InetSocketAddress local = InetSocketAddress (ipMapper.GetAddress(map), port);
     socketMaster->Bind (local);
-    socketMaster->Listen(1);
+    socketMaster->Listen();
     socketMaster->SetRecvCallback (MakeCallback (&mapper::HandleRead, this));
 }
 
