@@ -219,6 +219,9 @@ main (int argc, char *argv[])
     NodeContainer wifiStaNodeClient;
     wifiStaNodeClient.Create (1);
 
+    NodeContainer wifiStaNodeMapper;
+    wifiStaNodeMapper.Create (3);
+
     NodeContainer wifiStaNodeMaster;
     wifiStaNodeMaster.Create (1);
 
@@ -238,6 +241,10 @@ main (int argc, char *argv[])
 
     NetDeviceContainer staDeviceClient;
     staDeviceClient = wifi.Install (phy, mac, wifiStaNodeClient);
+
+    //mapper ips
+    NetDeviceContainer staDeviceMapper;
+    staDeviceMapper = wifi.Install (phy, mac, wifiStaNodeMapper);
 
     mac.SetType ("ns3::ApWifiMac", "Ssid", SsidValue (ssid));
 
@@ -267,30 +274,54 @@ main (int argc, char *argv[])
     mobility.SetMobilityModel ("ns3::ConstantPositionMobilityModel");
     mobility.Install (wifiStaNodeMaster);
 
+    mobility.SetMobilityModel ("ns3::ConstantPositionMobilityModel");
+    mobility.Install (wifiStaNodeMapper);
+
     InternetStackHelper stack;
     stack.Install (wifiStaNodeClient);
     stack.Install (wifiStaNodeMaster);
+    stack.install (wifiStaNodeMapper);
 
     Ipv4AddressHelper address;
 
     Ipv4InterfaceContainer staNodeClientInterface;
     Ipv4InterfaceContainer staNodesMasterInterface;
 
+    Ipv4InterfaceContainer staNodeMapperInterface;
+
     address.SetBase ("10.1.3.0", "255.255.255.0");
     staNodeClientInterface = address.Assign (staDeviceClient);
     staNodesMasterInterface = address.Assign (staDeviceMaster);
+
+    staNodeMapperInterface = address.Assign (staDeviceMapper);
+
 
     Ipv4GlobalRoutingHelper::PopulateRoutingTables ();
 
     uint16_t port = 1102;
 
-    Ptr<client> clientApp = CreateObject<client> (port, staNodesMasterInterface);
+    Ptr<client> clientApp = CreateObject<client> (port, staNodeClientInterface, staNodesMasterInterface);// port - client - master
     wifiStaNodeClient.Get (0)->AddApplication (clientApp);
     clientApp->SetStartTime (Seconds (0.0));
     clientApp->SetStopTime (Seconds (duration));  
 
-    Ptr<master> masterApp = CreateObject<master> (port, staNodesMasterInterface);
+    Ptr<master> masterApp = CreateObject<master> (port, staNodesMasterInterface, staNodeMapperInterface);//port - master - mapper
     wifiStaNodeMaster.Get (0)->AddApplication (masterApp);
+    masterApp->SetStartTime (Seconds (0.0));
+    masterApp->SetStopTime (Seconds (duration));
+
+    Ptr<master> mapperApp1 = CreateObject<mapper> (port, staNodeMapperInterface, staNodeClientInterface, 0);//port - mapper - client - map
+    wifiStaNodeMapper.Get (0)->AddApplication (mapperApp1);
+    masterApp->SetStartTime (Seconds (0.0));
+    masterApp->SetStopTime (Seconds (duration));  
+
+    Ptr<master> mapperApp2 = CreateObject<mapper> (port, staNodeMapperInterface, staNodeClientInterface, 1);//port - mapper - client - map
+    wifiStaNodeMapper.Get (1)->AddApplication (mapperApp2);
+    masterApp->SetStartTime (Seconds (0.0));
+    masterApp->SetStopTime (Seconds (duration));  
+
+    Ptr<master> mapperApp3 = CreateObject<mapper> (port, staNodeMapperInterface, staNodeClientInterface, 2);//port - mapper - client - map
+    wifiStaNodeMapper.Get (2)->AddApplication (mapperApp3);
     masterApp->SetStartTime (Seconds (0.0));
     masterApp->SetStopTime (Seconds (duration));  
 
@@ -309,9 +340,10 @@ main (int argc, char *argv[])
     return 0;
 }
 
-client::client (uint16_t port, Ipv4InterfaceContainer& ip)
+client::client (uint16_t port, Ipv4InterfaceContainer& ipClient, Ipv4InterfaceContainer& ipMaster)// port - client - master
         : port (port),
-          ip (ip)
+          ipClient (ipClient),
+          ipMaster (ipMaster)
 {
     std::srand (time(0));
 }
@@ -336,36 +368,17 @@ static void GenerateTraffic (Ptr<Socket> socket, uint16_t data)
 void
 client::StartApplication (void)
 {
-    Ptr<Socket> sock = Socket::CreateSocket (GetNode (), UdpSocketFactory::GetTypeId ());
-    InetSocketAddress sockAddr (ip.GetAddress(0), port);
-    sock->Connect (sockAddr);
+    Ptr<Socket> sockMapper = Socket::CreateSocket (GetNode (), UdpSocketFactory::GetTypeId ());// receiving  from mapper
+    Ptr<Socket> sockMaster = Socket::CreateSocket (GetNode (), UdpSocketFactory::GetTypeId ());// sending to master
+    InetSocketAddress sockAddrMaster (ipMaster.GetAddress(0), port);
+    InetSocketAddress sockAddrClient(ipClient.GetAddress(0), port);
+    sockMaster->Connect (sockAddrMaster);
+    sockMapper->Bind(sockAddrClient);
 
-    GenerateTraffic(sock, 0);
+    GenerateTraffic(sockMapper, 0);
+    sockMapper->SetRecvCallback (MakeCallback (&client::HandleRead, this));
 }
-
-master::master (uint16_t port, Ipv4InterfaceContainer& ip)
-        : port (port),
-          ip (ip)
-{
-    std::srand (time(0));
-}
-
-master::~master ()
-{
-}
-
-void
-master::StartApplication (void)
-{
-    socket = Socket::CreateSocket (GetNode (), UdpSocketFactory::GetTypeId ());
-    InetSocketAddress local = InetSocketAddress (ip.GetAddress(0), port);
-    socket->Bind (local);
-
-    socket->SetRecvCallback (MakeCallback (&master::HandleRead, this));
-}
-
-void 
-master::HandleRead (Ptr<Socket> socket)
+client::HandleRead (Ptr<Socket> socket)
 {
     Ptr<Packet> packet;
 
@@ -379,5 +392,129 @@ master::HandleRead (Ptr<Socket> socket)
         MyHeader destinationHeader;
         packet->RemoveHeader (destinationHeader);
         destinationHeader.Print(std::cout);
+    }
+}
+
+
+
+master::master (uint16_t port, Ipv4InterfaceContainer& ipMaster, Ipv4InterfaceContainer& ipMapper)//port - master - mapper
+        : port (port),
+          ipMaster (ipMaster),
+          ipMapper (ipMapper)
+{
+    std::srand (time(0));
+}
+
+master::~master ()
+{
+}
+
+void
+master::StartApplication (void)
+{
+    socketMaster = Socket::CreateSocket (GetNode (), UdpSocketFactory::GetTypeId ());
+    
+
+    InetSocketAddress local = InetSocketAddress (ipMaster.GetAddress(0), port);
+    
+    socketMaster->Bind (local);
+    
+    socketMaster->SetRecvCallback (MakeCallback (&master::HandleRead, this));
+}
+
+void 
+master::HandleRead (Ptr<Socket> socket)
+{
+    Ptr<Packet> packet;
+
+    socketMapper1 = Socket::CreateSocket (GetNode (), TcpSocketFactory::GetTypeId ());
+    socketMapper2 = Socket::CreateSocket (GetNode (), TcpSocketFactory::GetTypeId ());
+    socketMapper3 = Socket::CreateSocket (GetNode (), TcpSocketFactory::GetTypeId ());
+
+    InetSocketAddress Mapper1 = InetSocketAddress (ipMapper.GetAddress(0), port);
+    InetSocketAddress Mapper2 = InetSocketAddress (ipMapper.GetAddress(1), port);
+    InetSocketAddress Mapper3 = InetSocketAddress (ipMapper.GetAddress(2), port);
+
+    while ((packet = socket->Recv ()))
+    {
+        if (packet->GetSize () == 0)
+        {
+            break;
+        }
+
+        MyHeader destinationHeader;
+        packet->RemoveHeader (destinationHeader);
+        socketMapper1->Connect(Mapper1);
+        socketMapper2->Connect(Mapper2);
+        socketMapper3->Connect(Mapper3);
+
+        socketMapper1->Send(destinationHeader);
+        socketMapper2->Send(destinationHeader);
+        socketMapper3->Send(destinationHeader);
+    }
+}
+
+
+
+mapper::mapper (uint16_t port, Ipv4InterfaceContainer& ipMapper, Ipv4InterfaceContainer& ipClient, int map)//port - mapper - client - map
+        : port (port),
+          ipMapper (ipMapper),
+          ipClient (ipClient),
+          map (map)
+{
+    std::srand (time(0));
+}
+
+mapper::~mapper ()
+{
+}
+
+void
+mapper::StartApplication (void)
+{
+    socketMaster = Socket::CreateSocket (GetNode (), TcpSocketFactory::GetTypeId ());//receiving from master
+    
+    InetSocketAddress local = InetSocketAddress (ipMapper.GetAddress(map), port);
+    socketMaster->Bind (local);
+    socksocketMasteret->listen(1);
+    socketMaster->SetRecvCallback (MakeCallback (&mapper::HandleRead, this));
+}
+
+void 
+mapper::HandleRead (Ptr<Socket> socket)
+{
+    Ptr<Packet> packet;
+    
+    socketClient = Socket::CreateSocket (GetNode (), UdpSocketFactory::GetTypeId ());//sending to client
+    InetSocketAddress Client = InetSocketAddress (ipClient.GetAddress(0), port);
+    while ((packet = socket->Recv ()))
+    {
+        if (packet->GetSize () == 0)
+        {
+            break;
+        }
+
+        MyHeader destinationHeader;
+        packet->RemoveHeader (destinationHeader);
+        if(map == 0)//0-9
+        {
+
+        }
+        else if(map == 1)//10-20
+        {
+
+        }
+        else//21-25
+        {
+
+        }// data = one of a to z
+        
+        Ptr<Packet> newPacket = new Packet();
+        MyHeader m;
+        m.SetData(data);
+        packet->AddHeader (m);
+
+        socketClient->Connect(Client);
+        socketClient->Send(newPacket);
     }
 }
