@@ -186,6 +186,7 @@ public:
 private:
     virtual void StartApplication (void); // bind and listening for master to send packet (TCP)
     void HandleRead (Ptr<Socket> socket); // read and match the data to a character and send it to client (UDP)
+    void HandleAccept(Ptr<Socket> socket, const Address& from); // accept the connection
 
     uint16_t port;
     Ipv4InterfaceContainer& ipMapper;
@@ -522,7 +523,14 @@ mapper::StartApplication (void)
     InetSocketAddress local = InetSocketAddress (ipMapper.GetAddress(map), port);
     socketMaster->Bind (local);
     socketMaster->Listen();
-    socketMaster->SetRecvCallback (MakeCallback (&mapper::HandleRead, this));
+    socketMaster->SetAcceptCallback(MakeNullCallback<bool, Ptr<Socket>, const Address&>(),
+                               MakeCallback(&mapper::HandleAccept, this));
+}
+
+void
+mapper::HandleAccept(Ptr<Socket> socket, const Address& from) 
+{
+    socket->SetRecvCallback(MakeCallback(&mapper::HandleRead, this));
 }
 
 void 
@@ -535,11 +543,11 @@ mapper::HandleRead (Ptr<Socket> socket) // reads and maps and sends to client
 
     while ((packet = socket->Recv ()))
     {
+    	
         if (packet->GetSize () == 0)
         {
             break;
         }
-
         MyHeader destinationHeader;
         packet->RemoveHeader (destinationHeader);
         
