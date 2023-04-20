@@ -166,30 +166,48 @@ MyHeader::GetData (void) const
 class master : public Application
 {
 public:
-    master (uint16_t port, Ipv4InterfaceContainer& ip);
+    master (uint16_t port, Ipv4InterfaceContainer& ipMaster, Ipv4InterfaceContainer& ipMapper);
     virtual ~master ();
 private:
     virtual void StartApplication (void);
     void HandleRead (Ptr<Socket> socket);
 
     uint16_t port;
-    Ipv4InterfaceContainer ip;
+    Ipv4InterfaceContainer& ipMaster;
+    Ipv4InterfaceContainer& ipMapper;
     Ptr<Socket> socket;
 };
 
+class mapper : public Application
+{
+public:
+    mapper (uint16_t port, Ipv4InterfaceContainer& ipMapper, Ipv4InterfaceContainer& ipClient, int map);
+    virtual ~mapper ();
+private:
+    virtual void StartApplication (void);
+    void HandleRead (Ptr<Socket> socket);
+
+    uint16_t port;
+    Ipv4InterfaceContainer& ipMapper;
+    Ipv4InterfaceContainer& ipClient;
+    int map;
+    Ptr<Socket> socket;
+};
 
 class client : public Application
 {
 public:
-    client (uint16_t port, Ipv4InterfaceContainer& ip);
+    client (uint16_t port, Ipv4InterfaceContainer& ipClient, Ipv4InterfaceContainer& ipMaster);
     virtual ~client ();
 
 private:
     virtual void StartApplication (void);
+    void HandleRead (Ptr<Socket> socket)
 
     uint16_t port;
     Ptr<Socket> socket;
-    Ipv4InterfaceContainer ip;
+    Ipv4InterfaceContainer& ipClient;
+    Ipv4InterfaceContainer& ipMaster;
 };
 
 
@@ -280,7 +298,7 @@ main (int argc, char *argv[])
     InternetStackHelper stack;
     stack.Install (wifiStaNodeClient);
     stack.Install (wifiStaNodeMaster);
-    stack.install (wifiStaNodeMapper);
+    stack.Install (wifiStaNodeMapper);
 
     Ipv4AddressHelper address;
 
@@ -378,6 +396,7 @@ client::StartApplication (void)
     GenerateTraffic(sockMapper, 0);
     sockMapper->SetRecvCallback (MakeCallback (&client::HandleRead, this));
 }
+void
 client::HandleRead (Ptr<Socket> socket)
 {
     Ptr<Packet> packet;
@@ -539,7 +558,7 @@ mapper::HandleRead (Ptr<Socket> socket)
                     data = 'j';
                     break;
                 default:
-                    return
+                    return;
             }
 
         }
@@ -581,7 +600,7 @@ mapper::HandleRead (Ptr<Socket> socket)
                     data = 'u';
                     break;
                 default:
-                    return
+                    return;
             }
         }   
         else//21-25
@@ -604,7 +623,7 @@ mapper::HandleRead (Ptr<Socket> socket)
                     data = 'z';
                     break;
                 default:
-                    return
+                    return;
             }
         }// data = one of a to z
 
