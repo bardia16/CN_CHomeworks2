@@ -409,7 +409,7 @@ client::StartApplication (void)
     sockMaster->Connect (sockAddrMaster);
     sockMapper->Bind(sockAddrClient);
 
-    GenerateTraffic(sockMapper, 0);
+    GenerateTraffic(sockMaster, 0);
     sockMapper->SetRecvCallback (MakeCallback (&client::HandleRead, this));
 }
 void
